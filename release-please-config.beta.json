@@ -4,6 +4,7 @@
   "versioning": "prerelease",
   "prerelease": true,
   "prerelease-type": "beta",
+  "changelog-path": "CHANGELOG.beta.md",
   "changelog-sections": [
     { "type": "feat", "hidden": false, "section": "Features" },
     { "type": "fix", "hidden": false, "section": "Bug Fixes" },
