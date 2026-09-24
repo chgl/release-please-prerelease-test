@@ -19,10 +19,55 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
     steps:
-      - name: Run release-please
+      - id: release
+        name: Run release-please
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           target-branch: ${{ github.ref_name }}
           config-file: ${{ github.ref_name == 'beta' && 'release-please-config.beta.json' || 'release-please-config.json' }}
           manifest-file: ${{ github.ref_name == 'beta' && '.release-please-manifest.beta.json' || '.release-please-manifest.json' }}
+
+  # After a stable release ships from master, retarget the beta stream at the
+  # next minor version so its next pre-release comes out as <next-minor>-beta.1
+  # instead of continuing the old cycle's numbering.
+  resync-beta:
+    name: Retarget beta at the next pre-release cycle
+    needs: release-please
+    if: github.ref_name == 'master' && needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Merge master into beta and reset the beta version stream
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin beta master
+          git checkout -B beta origin/beta
+          git merge origin/master --no-edit -m "chore(beta): merge master v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}.${{ needs.release-please.outputs.patch }}"
+
+          next_minor="${{ needs.release-please.outputs.major }}.$(( ${{ needs.release-please.outputs.minor }} + 1 )).0"
+          echo '{}' > .release-please-manifest.beta.json
+          jq --arg v "${next_minor}-beta.1" '.packages["."]["initial-version"] = $v' release-please-config.beta.json > /tmp/release-please-config.beta.json
+          mv /tmp/release-please-config.beta.json release-please-config.beta.json
+
+          git add .release-please-manifest.beta.json release-please-config.beta.json
+          git commit -m "chore(beta): target ${next_minor}-beta.1 for the next pre-release cycle"
+          git push origin beta
+
+      - name: Open the first beta pre-release PR for the new cycle
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          target-branch: beta
+          config-file: release-please-config.beta.json
+          manifest-file: .release-please-manifest.beta.json
