@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0-beta.1](https://github.com/chgl/release-please-prerelease-test/compare/v1.1.0-beta.1...v2.0.0-beta.1) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* this is a breaking change
+
+### Features
+
+* a breaking update ([902d6ba](https://github.com/chgl/release-please-prerelease-test/commit/902d6ba1541a1ca5d999fcf83ac3fe0da48b4da6))
+
 ## 1.1.0-beta.1 (2026-09-24)
 
 
